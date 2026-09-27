@@ -62,6 +62,11 @@ pub struct AssetQuery{
     pub user_id: u32,
     pub asset: String,
 }
+#[derive(Serialize,Deserialize)]
+pub struct OnRampUSD{
+    pub user_id: u32,
+    pub amount: f64,
+}
 // POST /signup
 // POST /singin
 // GET /balance/usd -> Native currency

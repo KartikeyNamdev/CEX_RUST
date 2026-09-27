@@ -121,6 +121,30 @@ async fn get_asset_balance(
 
 }
 
+#[post("/balance/onramp")]
+async fn on_ramp_usd(
+    data : web::Data<AppState>,
+    body: web::Json<structs::OnRampUSD>
+) -> impl Responder{
+    let mut users = data.users.lock().unwrap();
+    let user_exists = users.iter().find(|u| u.index == body.user_id);
+    match user_exists{
+        Some(user) => {
+            let mut user = user.clone();
+            user.usd_balance = user.usd_balance + body.amount;
+            return HttpResponse::Ok().json(serde_json::json!({
+                "message": "On-ramp successful",
+                "username": user.username.clone(),
+                "asset": "USD",
+                "balance": user.usd_balance.clone()
+            }))
+        }
+        None => {
+            return HttpResponse::BadRequest().body("User not found");
+        }
+    }
+
+}
 #[actix_web::main] // or #[tokio::main]
 async fn main() -> std::io::Result<()> {
     // web::Data wraps the state in an Arc internally, so this clone below
@@ -129,7 +153,7 @@ async fn main() -> std::io::Result<()> {
         user_index: Mutex::new(0),
         users: Mutex::new(vec![]),
     });
-    HttpServer::new(move || App::new().app_data(app_state.clone()).service(signup).service(login).service(get_usd_balance).service(get_asset_balance))
+    HttpServer::new(move || App::new().app_data(app_state.clone()).service(signup).service(login).service(get_usd_balance).service(get_asset_balance).service(on_ramp_usd))
         .bind(("127.0.0.1", 3001))?
         .run()
         .await

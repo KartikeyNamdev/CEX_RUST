@@ -67,6 +67,19 @@ pub struct OnRampUSD{
     pub user_id: u32,
     pub amount: f64,
 }
+#[derive(Serialize,Deserialize)]
+pub struct DepositAsset{
+    pub user_id : u32,
+    pub asset : String,
+    pub amount : u64, // in lamports for SOL, satoshis for BTC, wei for ETH
+}
+
+pub struct DepositAssetResponse{
+    pub message : String,
+    pub username : String,
+    pub asset : String,
+    pub balance : f64,
+}
 // POST /signup
 // POST /singin
 // GET /balance/usd -> Native currency

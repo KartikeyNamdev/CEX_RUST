@@ -2,7 +2,7 @@ use actix_web::{post,get, web, App, HttpResponse, HttpServer, Responder};
 
 use std::sync::Mutex;
 mod structs;
-use structs::{AppState, PublicUser, SignUpResponse, SignupBody, USER, USDBalanceResponse};
+use structs::{AppState, PublicUser,DepositAssetResponse, SignUpResponse, SignupBody, USER, USDBalanceResponse};
 
 
 #[post("/signup")]
@@ -79,6 +79,7 @@ async fn get_usd_balance(
     let user_exists = users.iter().find(|u| u.index == query.user_id);
     match user_exists {
         Some(user) => {
+            println!("User exists {:?}", user_exists);
             return HttpResponse::Ok().json( USDBalanceResponse{
                 message : "Balance fetched successfully".to_string(),
                 username : user.username.clone(),
@@ -127,11 +128,10 @@ async fn on_ramp_usd(
     body: web::Json<structs::OnRampUSD>
 ) -> impl Responder{
     let mut users = data.users.lock().unwrap();
-    let user_exists = users.iter().find(|u| u.index == body.user_id);
+    let user_exists = users.iter_mut().find(|u| u.index == body.user_id);
     match user_exists{
         Some(user) => {
-            let mut user = user.clone();
-            user.usd_balance = user.usd_balance + body.amount;
+            user.usd_balance += body.amount;
             return HttpResponse::Ok().json(serde_json::json!({
                 "message": "On-ramp successful",
                 "username": user.username.clone(),
@@ -145,6 +145,46 @@ async fn on_ramp_usd(
     }
 
 }
+// POST /balance/deposit -> { userId : 1, asset : “SOL”, lamports : 1000000 }
+#[post("/balance/deposit")]
+async fn deposit_asset(
+    body : web::Json<structs::DepositAsset>,
+    data : web::Data<AppState>
+) -> impl Responder{
+    let mut users = data.users.lock().unwrap();
+    let user_exists = users.iter_mut().find(|u| u.index == body.user_id);
+    match user_exists{
+        Some(user) =>{
+            
+            let new_balance = match body.asset.as_str(){
+                "sol" => {
+                    user.assets.sol_balance += body.amount;
+                    user.assets.sol_balance
+                },
+                "btc" => {
+                    user.assets.btc_balance += body.amount;
+                    user.assets.btc_balance
+                },
+                "eth" => {
+                    user.assets.eth_balance += body.amount;
+                    user.assets.eth_balance
+                },
+                _ => {
+                    return HttpResponse::BadRequest().body("Invalid asset type");
+                }
+            };
+            HttpResponse::Ok().json(serde_json::json!({
+                "message": "Asset Balance updated successfully",
+                "username": user.username.clone(),
+                "asset": body.asset.clone(),
+                "balance": new_balance
+            }))
+        }
+        None => {
+            return HttpResponse::BadRequest().body("User not found");
+        }
+    }
+}
 #[actix_web::main] // or #[tokio::main]
 async fn main() -> std::io::Result<()> {
     // web::Data wraps the state in an Arc internally, so this clone below
@@ -153,7 +193,7 @@ async fn main() -> std::io::Result<()> {
         user_index: Mutex::new(0),
         users: Mutex::new(vec![]),
     });
-    HttpServer::new(move || App::new().app_data(app_state.clone()).service(signup).service(login).service(get_usd_balance).service(get_asset_balance).service(on_ramp_usd))
+    HttpServer::new(move || App::new().app_data(app_state.clone()).service(signup).service(login).service(get_usd_balance).service(get_asset_balance).service(on_ramp_usd).service(deposit_asset))
         .bind(("127.0.0.1", 3001))?
         .run()
         .await

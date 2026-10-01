@@ -1,15 +1,15 @@
 use actix_web::{get, post, web, HttpResponse, Responder};
 
-use crate::structs::{self, AppState, USDBalanceResponse};
+use crate::structs::{self, AppState, AuthedUser, USDBalanceResponse};
 
 // GET /balance/usd where user is identified using methods like query params, headers, or cookies. For simplicity, we will use query params here.
 #[get("/balance/usd")]
 pub async fn get_usd_balance(
-    query: web::Query<structs::UserQuery>,
+    auth : AuthedUser,
     data: web::Data<AppState>,
 ) -> impl Responder {
     let users = data.users.lock().unwrap();
-    let user_exists = users.iter().find(|u| u.index == query.user_id);
+    let user_exists = users.iter().find(|u| u.username == auth.username);
     match user_exists {
         Some(user) => {
             println!("User exists {:?}", user_exists);
@@ -28,10 +28,11 @@ pub async fn get_usd_balance(
 #[get("/balance/asset")]
 pub async fn get_asset_balance(
     query: web::Query<structs::AssetQuery>,
+    auth: AuthedUser,
     data: web::Data<AppState>,
 ) -> impl Responder {
     let users = data.users.lock().unwrap();
-    let user_exists = users.iter().find(|u| u.index == query.user_id);
+    let user_exists = users.iter().find(|u| u.username == auth.username);
     match user_exists {
         Some(user) => {
             let asset_balance = match query.asset.as_str() {

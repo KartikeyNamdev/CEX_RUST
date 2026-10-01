@@ -1,4 +1,5 @@
 use actix_web::{post, web, HttpResponse, Responder};
+use crate::auth::create_token;
 
 use crate::structs::{AppState, PublicUser, SignUpResponse, SignupBody, USER};
 
@@ -7,7 +8,7 @@ pub async fn signup(body: web::Json<SignupBody>, data: web::Data<AppState>) -> i
     // Lock users so that other cores couldnt access it while we are checking for existing users and adding a new one
     let mut users = data.users.lock().unwrap();
     let user_exists = users.iter().find(|u| u.username == body.username);
-    match user_exists {
+    let token = match user_exists {
         Some(_) => {
             println!("User exists {:?}", user_exists);
             return HttpResponse::BadRequest().body("Username already exists");
@@ -28,10 +29,12 @@ pub async fn signup(body: web::Json<SignupBody>, data: web::Data<AppState>) -> i
                 },
             });
             println!("New User created for index {:?} successfully", user_index);
+            create_token(body.username.clone())
         }
-    }
+    };
     HttpResponse::Ok().json(SignUpResponse {
         message: "User created successfully".to_string(),
+        token,
 
         user: PublicUser {
             index: *data.user_index.lock().unwrap(),
@@ -48,8 +51,10 @@ pub async fn login(body: web::Json<SignupBody>, data: web::Data<AppState>) -> im
     match user_exists {
         Some(user) => {
             if user.password == body.password {
+                let token = create_token(body.username.clone());
                 return HttpResponse::Ok().json(SignUpResponse {
                     message: "Login successfull".to_string(),
+                    token,
                     user: PublicUser {
                         index: user.index,
                         username: user.username.clone(),

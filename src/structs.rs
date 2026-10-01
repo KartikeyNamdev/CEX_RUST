@@ -31,12 +31,14 @@ pub struct SignupBody {
 #[derive(Serialize, Deserialize)]
 pub struct SignUpResponse {
     pub message: String,
+    pub token: String,
     pub user: PublicUser,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct LoginResponse{
     pub message: String,
+    pub token: String,
     pub user: PublicUser,
 }
 
@@ -80,11 +82,13 @@ pub struct DepositAssetResponse{
     pub asset : String,
     pub balance : f64,
 }
-// POST /signup
-// POST /singin
-// GET /balance/usd -> Native currency
-// GET /balance?asset=sol -> Specific asset info
-// POST /balance/onramp -> { userId : 1, amount : 200 }
-// POST /balance/deposit -> { userId : 1, asset : “SOL”, lamports : 1000000 }
-// ———
-// POST /order { market : “SOL_USDC”, type : “buy/sell”, qty: 1, price? : 75.22, type: “limit” }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Claims {
+    pub sub: String,    // "subject" — the user's index. Standard JWT convention for "who this token is about"
+    pub exp: usize,  // expiry, as a Unix timestamp — required by the jsonwebtoken crate
+}
+
+pub struct AuthedUser {
+    pub username : String,
+}
